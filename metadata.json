@@ -1,0 +1,6 @@
+{
+  "name": "Wallet: Track your finance",
+  "description": "Personal finance tracker with real-time balance overview, digital cards, transaction tracking, budget management, and spending analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
