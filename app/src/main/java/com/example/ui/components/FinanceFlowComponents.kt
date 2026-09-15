@@ -1,7 +1,10 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,20 +37,30 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Paid
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.AutoGraph
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TrackChanges
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -140,6 +153,8 @@ fun FinanceFlowHeader(
       Text(
         text = when (view) {
           "dashboard" -> "Hi, ${userName.split(" ").firstOrNull() ?: "there"}"
+          "search" -> "Search"
+          "analytics" -> "Analytics & Reports"
           "history" -> "History"
           "goals" -> "Savings Goals"
           "profile" -> "Account Profile"
@@ -208,146 +223,163 @@ fun FinanceFlowBottomNav(
   userInitials: String = "A",
   onSelectView: (String) -> Unit
 ) {
+  // Idea 1 from design mockup: Sleek dark rounded bar with active capsule pill and minimal inactive icons
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .padding(bottom = 12.dp)
+      .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+      .testTag("finance_bottom_nav"),
+    contentAlignment = Alignment.Center
   ) {
     Card(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = 16.dp),
+        .shadow(
+          elevation = 20.dp,
+          shape = RoundedCornerShape(32.dp),
+          spotColor = Color(0x66000000),
+          ambientColor = Color(0x33000000)
+        ),
       shape = RoundedCornerShape(32.dp),
       colors = CardDefaults.cardColors(
-        containerColor = if (isDarkMode) Color(0xEE1C1C1E) else Color(0xF2FFFFFF)
+        containerColor = Color(0xFF16171B)
       ),
       border = BorderStroke(
         1.dp,
-        if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
+        Color(0x24FFFFFF)
       )
     ) {
-      Row(
+      Column(
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalAlignment = Alignment.CenterHorizontally
       ) {
-        // 1. Dashboard
-        BottomNavItem(
-          label = "Dashboard",
-          icon = {
-            Icon(
-              imageVector = Icons.Outlined.Dashboard,
-              contentDescription = "Dashboard",
-              modifier = Modifier.size(22.dp)
-            )
-          },
-          active = currentView == "dashboard",
-          onClick = { onSelectView("dashboard") }
-        )
-
-        // 2. History
-        BottomNavItem(
-          label = "History",
-          icon = {
-            Icon(
-              imageVector = Icons.Outlined.History,
-              contentDescription = "History",
-              modifier = Modifier.size(22.dp)
-            )
-          },
-          active = currentView == "history",
-          onClick = { onSelectView("history") }
-        )
-
-        // 3. Center Floating + Add Button
-        Box(
+        Row(
           modifier = Modifier
-            .offset(y = (-14).dp)
-            .size(56.dp)
-            .shadow(12.dp, CircleShape, spotColor = AccentPurple.copy(alpha = 0.4f))
-            .clip(CircleShape)
-            .background(if (currentView == "add") AccentPurple else Color.Black)
-            .clickable { onSelectView("add") }
-            .testTag("center_add_button"),
-          contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 2.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "Add New",
-            tint = Color.White,
-            modifier = Modifier.size(28.dp)
+          // 1. Home
+          Idea1NavItem(
+            label = "Home",
+            activeIcon = Icons.Filled.Home,
+            inactiveIcon = Icons.Outlined.Home,
+            active = currentView == "dashboard",
+            onClick = { onSelectView("dashboard") },
+            testTag = "nav_home"
+          )
+
+          // 2. Search
+          Idea1NavItem(
+            label = "Search",
+            activeIcon = Icons.Filled.Search,
+            inactiveIcon = Icons.Outlined.Search,
+            active = currentView == "search",
+            onClick = { onSelectView("search") },
+            testTag = "nav_search"
+          )
+
+          // 3. Analytics
+          Idea1NavItem(
+            label = "Analytics",
+            activeIcon = Icons.Filled.PieChart,
+            inactiveIcon = Icons.Outlined.PieChart,
+            active = currentView == "analytics",
+            onClick = { onSelectView("analytics") },
+            testTag = "nav_analytics"
+          )
+
+          // 4. History
+          Idea1NavItem(
+            label = "History",
+            activeIcon = Icons.Filled.Schedule,
+            inactiveIcon = Icons.Outlined.Schedule,
+            active = currentView == "history",
+            onClick = { onSelectView("history") },
+            testTag = "nav_history"
+          )
+
+          // 5. Profile
+          Idea1NavItem(
+            label = "Profile",
+            activeIcon = Icons.Filled.Person,
+            inactiveIcon = Icons.Outlined.Person,
+            active = currentView == "profile",
+            onClick = { onSelectView("profile") },
+            testTag = "nav_profile"
           )
         }
 
-        // 4. Goals
-        BottomNavItem(
-          label = "Goals",
-          icon = {
-            Text("🎯", fontSize = 18.sp)
-          },
-          active = currentView == "goals",
-          onClick = { onSelectView("goals") }
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Bottom Home Indicator Bar
+        Box(
+          modifier = Modifier
+            .width(96.dp)
+            .height(4.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color(0xFF424450))
         )
 
-        // 5. Profile
-        BottomNavItem(
-          label = "Profile",
-          icon = {
-            Box(
-              modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(
-                  Brush.linearGradient(
-                    listOf(Color(0xFF555555), Color(0xFF111111))
-                  )
-                ),
-              contentAlignment = Alignment.Center
-            ) {
-              Text(
-                text = userInitials,
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-              )
-            }
-          },
-          active = currentView == "profile",
-          onClick = { onSelectView("profile") }
-        )
+        Spacer(modifier = Modifier.height(2.dp))
       }
     }
   }
 }
 
 @Composable
-private fun BottomNavItem(
+private fun Idea1NavItem(
   label: String,
-  icon: @Composable () -> Unit,
+  activeIcon: androidx.compose.ui.graphics.vector.ImageVector,
+  inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
   active: Boolean,
-  onClick: () -> Unit
+  onClick: () -> Unit,
+  testTag: String
 ) {
-  Column(
+  Box(
     modifier = Modifier
-      .clip(RoundedCornerShape(16.dp))
+      .animateContentSize(
+        animationSpec = spring(
+          stiffness = Spring.StiffnessMediumLow,
+          dampingRatio = Spring.DampingRatioLowBouncy
+        )
+      )
+      .clip(RoundedCornerShape(50))
+      .background(if (active) Color(0xFF2E274D) else Color.Transparent)
+      .then(
+        if (active) Modifier.border(1.dp, Color(0x33A594FD), RoundedCornerShape(50)) else Modifier
+      )
       .clickable { onClick() }
-      .padding(horizontal = 10.dp, vertical = 6.dp),
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(3.dp)
+      .padding(
+        horizontal = if (active) 14.dp else 10.dp,
+        vertical = if (active) 9.dp else 10.dp
+      )
+      .testTag(testTag),
+    contentAlignment = Alignment.Center
   ) {
-    Box(
-      tint = if (active) MaterialTheme.colorScheme.onBackground else TextSecondary
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-      icon()
+      Icon(
+        imageVector = if (active) activeIcon else inactiveIcon,
+        contentDescription = label,
+        tint = if (active) Color(0xFFA594FD) else Color(0xFF757885),
+        modifier = Modifier.size(22.dp)
+      )
+      if (active) {
+        Text(
+          text = label,
+          color = Color(0xFFA594FD),
+          fontSize = 13.sp,
+          fontWeight = FontWeight.SemiBold,
+          maxLines = 1
+        )
+      }
     }
-    Text(
-      text = label,
-      fontSize = 10.sp,
-      fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-      color = if (active) MaterialTheme.colorScheme.onBackground else TextSecondary
-    )
   }
 }
 
@@ -928,6 +960,18 @@ fun SettingsDrawer(
           label = "Dashboard",
           active = currentView == "dashboard",
           onClick = { onSelectView("dashboard"); onClose() }
+        )
+        DrawerNavItem(
+          icon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+          label = "Search & Discover",
+          active = currentView == "search",
+          onClick = { onSelectView("search"); onClose() }
+        )
+        DrawerNavItem(
+          icon = { Icon(Icons.Outlined.AutoGraph, contentDescription = null) },
+          label = "Analytics & Reports",
+          active = currentView == "analytics",
+          onClick = { onSelectView("analytics"); onClose() }
         )
         DrawerNavItem(
           icon = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },

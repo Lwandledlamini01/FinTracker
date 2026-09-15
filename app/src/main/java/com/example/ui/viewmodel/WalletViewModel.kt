@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 data class UserProfile(
   val name: String = "Alex Morgan",
@@ -48,6 +51,34 @@ val FINANCE_CATEGORIES = listOf(
 
 val GOAL_ICONS = listOf("📱", "✈️", "🚗", "🏠", "💻", "🎓", "💍", "🎸", "📷", "🏋️")
 
+data class CategorySpend(
+  val categoryId: String,
+  val label: String,
+  val icon: String,
+  val color: String,
+  val amount: Double,
+  val percentage: Float,
+  val transactionCount: Int
+)
+
+data class MonthlyTrend(
+  val monthName: String,
+  val income: Double,
+  val expense: Double
+)
+
+data class AnalyticsReport(
+  val totalIncome: Double = 0.0,
+  val totalExpense: Double = 0.0,
+  val netSavings: Double = 0.0,
+  val savingsRate: Double = 0.0,
+  val dailyAverage: Double = 0.0,
+  val categories: List<CategorySpend> = emptyList(),
+  val trends: List<MonthlyTrend> = emptyList(),
+  val topCategory: CategorySpend? = null,
+  val totalTransactions: Int = 0
+)
+
 class WalletViewModel(
   private val repository: WalletRepository
 ) : ViewModel() {
@@ -58,7 +89,11 @@ class WalletViewModel(
     }
   }
 
-  // Active Screen / Tab
+  // Authentication State
+  private val _isAuthenticated = MutableStateFlow(true)
+  val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
+
+  // Active Screen / Tab ("dashboard", "history", "goals", "profile", "add", "analytics")
   private val _activeView = MutableStateFlow("dashboard")
   val activeView: StateFlow<String> = _activeView.asStateFlow()
 
@@ -77,6 +112,9 @@ class WalletViewModel(
   // User Profile
   private val _user = MutableStateFlow(UserProfile())
   val user: StateFlow<UserProfile> = _user.asStateFlow()
+
+  // Analytics Timeframe ("month", "30days", "year", "all")
+  val analyticsTimeframe = MutableStateFlow("month")
 
   // Settings Slide Drawer
   val isSettingsDrawerOpen = MutableStateFlow(false)
@@ -143,7 +181,41 @@ class WalletViewModel(
     }
   }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-  // Actions
+  // Reactive Analytics Report
+  val analyticsReport: StateFlow<AnalyticsReport> = combine(
+    allTransactions,
+    analyticsTimeframe
+  ) { transactions, timeframe ->
+    calculateAnalytics(transactions, timeframe)
+  }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsReport())
+
+  // Authentication Actions
+  fun login(email: String, name: String = "Alex Morgan") {
+    _user.value = UserProfile(
+      name = name,
+      email = email,
+      isPremium = true
+    )
+    _isAuthenticated.value = true
+    _activeView.value = "dashboard"
+  }
+
+  fun signUp(name: String, email: String) {
+    _user.value = UserProfile(
+      name = name,
+      email = email,
+      isPremium = true
+    )
+    _isAuthenticated.value = true
+    _activeView.value = "dashboard"
+  }
+
+  fun signOut() {
+    _isAuthenticated.value = false
+    isSettingsDrawerOpen.value = false
+  }
+
+  // Navigation & View Actions
   fun setView(view: String) {
     _activeView.value = view
   }
@@ -158,6 +230,10 @@ class WalletViewModel(
 
   fun toggleDarkMode() {
     _isDarkMode.value = !_isDarkMode.value
+  }
+
+  fun setAnalyticsTimeframe(timeframe: String) {
+    analyticsTimeframe.value = timeframe
   }
 
   fun addTransaction(
@@ -220,6 +296,142 @@ class WalletViewModel(
       _activeView.value = "dashboard"
       isSettingsDrawerOpen.value = false
     }
+  }
+
+  private fun calculateAnalytics(transactions: List<TransactionEntity>, timeframe: String): AnalyticsReport {
+    val now = System.currentTimeMillis()
+    val filtered = when (timeframe) {
+      "month" -> {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        val startOfMonth = cal.timeInMillis
+        transactions.filter { it.timestamp >= startOfMonth }
+      }
+      "30days" -> {
+        val thirtyDaysAgo = now - (30L * 86_400_000L)
+        transactions.filter { it.timestamp >= thirtyDaysAgo }
+      }
+      "year" -> {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_YEAR, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        val startOfYear = cal.timeInMillis
+        transactions.filter { it.timestamp >= startOfYear }
+      }
+      else -> transactions
+    }
+
+    val totalIncome = filtered.filter { it.type.equals("INCOME", ignoreCase = true) }.sumOf { it.amount }
+    val totalExpense = filtered.filter { it.type.equals("EXPENSE", ignoreCase = true) }.sumOf { it.amount }
+    val netSavings = totalIncome - totalExpense
+    val savingsRate = if (totalIncome > 0) ((totalIncome - totalExpense) / totalIncome * 100.0).coerceAtLeast(0.0) else 0.0
+
+    val daysInPeriod = when (timeframe) {
+      "month" -> 30
+      "30days" -> 30
+      "year" -> 365
+      else -> 60
+    }
+    val dailyAverage = if (daysInPeriod > 0) totalExpense / daysInPeriod else 0.0
+
+    // Group expenses by category
+    val expenseTxs = filtered.filter { it.type.equals("EXPENSE", ignoreCase = true) }
+    val categoryMap = expenseTxs.groupBy { it.category.lowercase() }
+    val categorySpendList = mutableListOf<CategorySpend>()
+
+    FINANCE_CATEGORIES.forEach { catItem ->
+      val matchingTxs = categoryMap[catItem.id.lowercase()] ?: categoryMap[catItem.label.lowercase()] ?: emptyList()
+      val sum = matchingTxs.sumOf { it.amount }
+      if (sum > 0) {
+        val pct = if (totalExpense > 0) ((sum / totalExpense) * 100.0).toFloat() else 0f
+        categorySpendList.add(
+          CategorySpend(
+            categoryId = catItem.id,
+            label = catItem.label,
+            icon = catItem.icon,
+            color = catItem.color,
+            amount = sum,
+            percentage = pct,
+            transactionCount = matchingTxs.size
+          )
+        )
+      }
+    }
+
+    val recognized = FINANCE_CATEGORIES.flatMap { listOf(it.id.lowercase(), it.label.lowercase()) }.toSet()
+    val otherExpenses = expenseTxs.filter { it.category.lowercase() !in recognized }
+    if (otherExpenses.isNotEmpty()) {
+      val sum = otherExpenses.sumOf { it.amount }
+      val pct = if (totalExpense > 0) ((sum / totalExpense) * 100.0).toFloat() else 0f
+      categorySpendList.add(
+        CategorySpend(
+          categoryId = "other",
+          label = "Other",
+          icon = "📦",
+          color = "#8E8E93",
+          amount = sum,
+          percentage = pct,
+          transactionCount = otherExpenses.size
+        )
+      )
+    }
+    categorySpendList.sortByDescending { it.amount }
+
+    // Monthly trends (past 6 months)
+    val sdf = SimpleDateFormat("MMM", Locale.US)
+    val trends = mutableListOf<MonthlyTrend>()
+    for (i in 5 downTo 0) {
+      val monthCal = Calendar.getInstance()
+      monthCal.add(Calendar.MONTH, -i)
+      val monthName = sdf.format(monthCal.time)
+      val targetYearMonth = monthCal.get(Calendar.YEAR) * 100 + monthCal.get(Calendar.MONTH)
+
+      val txInMonth = transactions.filter {
+        val c = Calendar.getInstance().apply { timeInMillis = it.timestamp }
+        val ym = c.get(Calendar.YEAR) * 100 + c.get(Calendar.MONTH)
+        ym == targetYearMonth
+      }
+      var inc = txInMonth.filter { it.type.equals("INCOME", ignoreCase = true) }.sumOf { it.amount }
+      var exp = txInMonth.filter { it.type.equals("EXPENSE", ignoreCase = true) }.sumOf { it.amount }
+
+      // Baseline if no historical transactions recorded yet in Room DB
+      if (inc == 0.0 && exp == 0.0) {
+        inc = when (i) {
+          5 -> 4800.0
+          4 -> 5100.0
+          3 -> 5250.0
+          2 -> 4950.0
+          1 -> 5300.0
+          else -> totalIncome.coerceAtLeast(3500.0)
+        }
+        exp = when (i) {
+          5 -> 2400.0
+          4 -> 2650.0
+          3 -> 2100.0
+          2 -> 2300.0
+          1 -> 2450.0
+          else -> totalExpense.coerceAtLeast(1900.0)
+        }
+      }
+      trends.add(MonthlyTrend(monthName = monthName, income = inc, expense = exp))
+    }
+
+    return AnalyticsReport(
+      totalIncome = totalIncome,
+      totalExpense = totalExpense,
+      netSavings = netSavings,
+      savingsRate = savingsRate,
+      dailyAverage = dailyAverage,
+      categories = categorySpendList,
+      trends = trends,
+      topCategory = categorySpendList.firstOrNull(),
+      totalTransactions = filtered.size
+    )
   }
 }
 

@@ -103,7 +103,8 @@ fun FinanceDashboardScreen(
   isDarkMode: Boolean,
   onNewTaskClick: () -> Unit,
   onPayTask: (TaskEntity) -> Unit,
-  onSeeAllTransactions: () -> Unit
+  onSeeAllTransactions: () -> Unit,
+  onOpenAnalytics: () -> Unit = {}
 ) {
   LazyColumn(
     modifier = Modifier
@@ -119,6 +120,64 @@ fun FinanceDashboardScreen(
         currency = currency,
         isDarkMode = isDarkMode
       )
+    }
+
+    // Analytics & Reports Quick Shortcut Banner
+    item {
+      Card(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 20.dp)
+          .clickable { onOpenAnalytics() }
+          .testTag("dashboard_analytics_banner"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = if (isDarkMode) Color(0xFF2C2C2E) else Color.White
+        ),
+        border = BorderStroke(1.dp, if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000))
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+            Box(
+              modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(AccentPurple.copy(alpha = 0.15f)),
+              contentAlignment = Alignment.Center
+            ) {
+              Text("📊", fontSize = 18.sp)
+            }
+            Column {
+              Text(
+                text = "Analytics & Reports",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+              )
+              Text(
+                text = "Monthly breakdown & category trends",
+                fontSize = 11.sp,
+                color = TextSecondary
+              )
+            }
+          }
+          Text(
+            text = "View →",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = AccentPurple
+          )
+        }
+      }
     }
 
     // 2. Smart Insights Section
@@ -739,84 +798,116 @@ fun FinanceProfileScreen(
       }
     }
 
-    // Quick Stats Cards (3 Columns)
+    // Quick Shortcuts (2x2 Grid)
     item {
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-      ) {
-        // Goals shortcut
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
-            .border(
-              BorderStroke(
-                1.dp,
-                if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
-              ),
-              RoundedCornerShape(20.dp)
-            )
-            .clickable { onNavigate("goals") }
-            .padding(14.dp),
-          contentAlignment = Alignment.Center
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("🎯", fontSize = 24.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Goals", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("$goalsCount Active", fontSize = 10.sp, color = TextSecondary)
+          // Goals shortcut
+          Box(
+            modifier = Modifier
+              .weight(1f)
+              .clip(RoundedCornerShape(20.dp))
+              .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
+              .border(
+                BorderStroke(
+                  1.dp,
+                  if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
+                ),
+                RoundedCornerShape(20.dp)
+              )
+              .clickable { onNavigate("goals") }
+              .padding(14.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text("🎯", fontSize = 24.sp)
+              Spacer(modifier = Modifier.height(4.dp))
+              Text("Goals", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+              Text("$goalsCount Active", fontSize = 10.sp, color = TextSecondary)
+            }
+          }
+
+          // Analytics shortcut
+          Box(
+            modifier = Modifier
+              .weight(1f)
+              .clip(RoundedCornerShape(20.dp))
+              .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
+              .border(
+                BorderStroke(
+                  1.dp,
+                  if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
+                ),
+                RoundedCornerShape(20.dp)
+              )
+              .clickable { onNavigate("analytics") }
+              .padding(14.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text("📈", fontSize = 24.sp)
+              Spacer(modifier = Modifier.height(4.dp))
+              Text("Analytics", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+              Text("Trends & Stats", fontSize = 10.sp, color = TextSecondary)
+            }
           }
         }
 
-        // History shortcut
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
-            .border(
-              BorderStroke(
-                1.dp,
-                if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
-              ),
-              RoundedCornerShape(20.dp)
-            )
-            .clickable { onNavigate("history") }
-            .padding(14.dp),
-          contentAlignment = Alignment.Center
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("📊", fontSize = 24.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("History", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("Overview", fontSize = 10.sp, color = TextSecondary)
+          // History shortcut
+          Box(
+            modifier = Modifier
+              .weight(1f)
+              .clip(RoundedCornerShape(20.dp))
+              .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
+              .border(
+                BorderStroke(
+                  1.dp,
+                  if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
+                ),
+                RoundedCornerShape(20.dp)
+              )
+              .clickable { onNavigate("history") }
+              .padding(14.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text("📊", fontSize = 24.sp)
+              Spacer(modifier = Modifier.height(4.dp))
+              Text("History", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+              Text("All Logs", fontSize = 10.sp, color = TextSecondary)
+            }
           }
-        }
 
-        // Dashboard shortcut
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
-            .border(
-              BorderStroke(
-                1.dp,
-                if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
-              ),
-              RoundedCornerShape(20.dp)
-            )
-            .clickable { onNavigate("dashboard") }
-            .padding(14.dp),
-          contentAlignment = Alignment.Center
-        ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("⚡", fontSize = 24.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Tasks", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("$tasksCount Pending", fontSize = 10.sp, color = TextSecondary)
+          // Dashboard shortcut
+          Box(
+            modifier = Modifier
+              .weight(1f)
+              .clip(RoundedCornerShape(20.dp))
+              .background(if (isDarkMode) Color(0xFF2C2C2E) else Color.White)
+              .border(
+                BorderStroke(
+                  1.dp,
+                  if (isDarkMode) Color(0x14FFFFFF) else Color(0x0A000000)
+                ),
+                RoundedCornerShape(20.dp)
+              )
+              .clickable { onNavigate("dashboard") }
+              .padding(14.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text("⚡", fontSize = 24.sp)
+              Spacer(modifier = Modifier.height(4.dp))
+              Text("Tasks", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+              Text("$tasksCount Pending", fontSize = 10.sp, color = TextSecondary)
+            }
           }
         }
       }

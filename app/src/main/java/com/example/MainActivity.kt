@@ -27,6 +27,8 @@ import com.example.data.repository.WalletRepository
 import com.example.ui.components.FinanceFlowBottomNav
 import com.example.ui.components.FinanceFlowHeader
 import com.example.ui.components.SettingsDrawer
+import com.example.ui.screens.AnalyticsScreen
+import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.ContributeToGoalDialog
 import com.example.ui.screens.CreateGoalDialog
 import com.example.ui.screens.FinanceAddScreen
@@ -34,6 +36,7 @@ import com.example.ui.screens.FinanceDashboardScreen
 import com.example.ui.screens.FinanceGoalsScreen
 import com.example.ui.screens.FinanceHistoryScreen
 import com.example.ui.screens.FinanceProfileScreen
+import com.example.ui.screens.SearchScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.WalletViewModel
 import com.example.ui.viewmodel.WalletViewModelFactory
@@ -50,10 +53,26 @@ class MainActivity : ComponentActivity() {
       val viewModel: WalletViewModel = viewModel(
         factory = WalletViewModelFactory(repository)
       )
+      val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
       val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
 
       MyApplicationTheme(darkTheme = isDarkMode) {
-        FinanceFlowApp(viewModel = viewModel)
+        if (!isAuthenticated) {
+          AuthScreen(
+            isDarkMode = isDarkMode,
+            onLogin = { email, password ->
+              viewModel.login(email)
+            },
+            onSignUp = { name, email, password ->
+              viewModel.signUp(name, email)
+            },
+            onDemoLogin = {
+              viewModel.login("alex.morgan@example.com", "Alex Morgan")
+            }
+          )
+        } else {
+          FinanceFlowApp(viewModel = viewModel)
+        }
       }
     }
   }
@@ -77,6 +96,9 @@ fun FinanceFlowApp(viewModel: WalletViewModel) {
   val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
   val typeFilter by viewModel.typeFilter.collectAsStateWithLifecycle()
   val categoryFilter by viewModel.categoryFilter.collectAsStateWithLifecycle()
+
+  val analyticsReport by viewModel.analyticsReport.collectAsStateWithLifecycle()
+  val analyticsTimeframe by viewModel.analyticsTimeframe.collectAsStateWithLifecycle()
 
   val isSettingsOpen by viewModel.isSettingsDrawerOpen.collectAsStateWithLifecycle()
   val isAddGoalOpen by viewModel.isAddGoalModalOpen.collectAsStateWithLifecycle()
@@ -129,7 +151,35 @@ fun FinanceFlowApp(viewModel: WalletViewModel) {
                 viewModel.setView("add")
               },
               onPayTask = { viewModel.payTask(it) },
-              onSeeAllTransactions = { viewModel.setView("history") }
+              onSeeAllTransactions = { viewModel.setView("history") },
+              onOpenAnalytics = { viewModel.setView("analytics") }
+            )
+          }
+
+          "search" -> {
+            SearchScreen(
+              transactions = transactions,
+              tasks = tasks,
+              goals = goals,
+              currency = currency,
+              isDarkMode = isDarkMode,
+              searchQuery = searchQuery,
+              onSearchChange = { viewModel.searchQuery.value = it },
+              onSelectGoal = { goal ->
+                viewModel.selectedGoalForContribute.value = goal
+                viewModel.isContributeModalOpen.value = true
+              }
+            )
+          }
+
+          "analytics" -> {
+            AnalyticsScreen(
+              report = analyticsReport,
+              recentTransactions = transactions,
+              currency = currency,
+              isDarkMode = isDarkMode,
+              selectedTimeframe = analyticsTimeframe,
+              onSelectTimeframe = { viewModel.setAnalyticsTimeframe(it) }
             )
           }
 
@@ -176,7 +226,7 @@ fun FinanceFlowApp(viewModel: WalletViewModel) {
               onToggleDarkMode = { viewModel.toggleDarkMode() },
               onSelectCurrency = { viewModel.setCurrency(it) },
               onNavigate = { viewModel.setView(it) },
-              onSignOut = { viewModel.resetAllData() }
+              onSignOut = { viewModel.signOut() }
             )
           }
 
@@ -210,7 +260,7 @@ fun FinanceFlowApp(viewModel: WalletViewModel) {
       onSelectView = { viewModel.setView(it) },
       onToggleDarkMode = { viewModel.toggleDarkMode() },
       onSelectCurrency = { viewModel.setCurrency(it) },
-      onSignOut = { viewModel.resetAllData() }
+      onSignOut = { viewModel.signOut() }
     )
 
     // Create Goal Dialog
